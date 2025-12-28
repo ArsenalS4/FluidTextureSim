@@ -15,9 +15,3 @@ A web-based interactive fluid simulation tool designed for creating game assets.
   - **Texture Export**: Save the current state as a high-res PNG (with optional Depth Map).
   - **Flipbook Export**: Record the entire simulation history and re-render it into a sprite sheet (flipbook) with frame blending and depth maps.
 - **Touch Friendly**: Full support for mobile and touch devices.
-
-## Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/yourusername/fluid-simulator.git
