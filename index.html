@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Fluid Simulator & Flipbook Generator</title>
+  <meta name="description" content="A web-based 2D fluid simulator with export capabilities for game assets (flipbooks, textures). Features multiple material presets and simulation modes.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container">
+      <div id="canvas-wrapper">
+        <canvas id="fluid-canvas"></canvas>
+        <canvas id="overlay-canvas"></canvas>
+        <div id="spawn-overlay"></div>
+      </div>
+    </div>
+    
+    <!-- Recording overlay removed -->
+    
+    <!-- SVG Filter for Fluid Effect -->
+    <svg style="position: absolute; width: 0; height: 0; pointer-events: none;">
+      <defs>
+        <filter id="fluid-goo">
+          <!-- Reduced blur for tighter edges -->
+          <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+          <!-- Adjusted matrix for sharper threshold -->
+          <feColorMatrix id="goo-matrix" in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" result="goo" />
+          <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+        </filter>
+        <!-- Depth Map Filter (Grayscale) -->
+        <filter id="fluid-depth">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
+          <feColorMatrix in="blur" mode="matrix" values="0 0 0 1 0  0 0 0 1 0  0 0 0 1 0  0 0 0 25 -9" />
+        </filter>
+      </defs>
+    </svg>
+    
+    <div id="controls-panel">
+      <div class="controls-header">
+        <button id="toggle-controls" class="icon-btn">⚙️</button>
+        <div class="header-actions">
+          <button id="reset-btn" class="btn-secondary">Reset</button>
+          <button id="export-btn" class="btn-primary">Export</button>
+        </div>
+      </div>
+      
+      <div id="controls-content" class="collapsed">
+        <div class="control-section">
+          <h3>Canvas</h3>
+          <div class="control-group">
+            <label>Dimensions</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="number" id="canvas-width" value="1024" step="128">
+              <span style="align-self: center;">x</span>
+              <input type="number" id="canvas-height" value="1024" step="128">
+            </div>
+          </div>
+          <div class="control-group">
+             <button id="center-view-btn" class="btn-secondary" style="width: 100%;">Reset View / Fit</button>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h3>Simulation Mode</h3>
+          <div class="mode-selector">
+            <button class="mode-btn active" data-mode="wall">Wall Splatter</button>
+            <button class="mode-btn" data-mode="floor">Floor Pool</button>
+            <button class="mode-btn" data-mode="one-click">One Click Pool</button>
+          </div>
+          
+          <div id="pool-shape-controls" class="hidden" style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px;">
+            <label style="margin-bottom: 8px; display: block;">Shape Constraint</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+               <button id="draw-shape-btn" class="btn-secondary" style="flex: 1; font-size: 12px;">✏️ Draw Area</button>
+               <button id="clear-shape-btn" class="btn-secondary" style="width: 40px;" title="Clear Shape">🗑️</button>
+            </div>
+            <div style="font-size: 10px; color: #aaa; line-height: 1.2;">
+              Draw a shape, then turn off draw mode to click and fill it.
+            </div>
+          </div>
+
+          <div class="control-group" style="margin-top: 12px;">
+            <label>Spawn Type</label>
+            <div class="mode-selector">
+              <button class="spawn-mode-btn active" data-spawn="spray">Spray/Stream</button>
+              <button class="spawn-mode-btn" data-spawn="drop">Single Drop</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h3>Material</h3>
+          <div class="control-group">
+            <label>Preset</label>
+            <select id="material-select">
+              <option value="custom">Custom</option>
+              <option value="water">Water</option>
+              <option value="blood">Blood</option>
+              <option value="oil">Oil</option>
+              <option value="honey">Honey</option>
+              <option value="slime">Slime</option>
+              <option value="chocolate">Chocolate</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h3>Fluid Properties</h3>
+          <div class="control-group">
+            <label>Viscosity</label>
+            <input type="range" id="viscosity" min="0" max="100" value="20">
+            <span class="value">20</span>
+          </div>
+          <div class="control-group">
+            <label>Density</label>
+            <input type="range" id="density" min="1" max="100" value="50">
+            <span class="value">50</span>
+          </div>
+          <div class="control-group">
+            <label>Gravity</label>
+            <input type="range" id="gravity" min="0" max="200" value="100">
+            <span class="value">100</span>
+          </div>
+          <div class="control-group">
+            <label>Surface Tension</label>
+            <input type="range" id="surface-tension" min="0" max="100" value="30">
+            <span class="value">30</span>
+          </div>
+          <div class="control-group">
+            <label>Turbulence</label>
+            <input type="range" id="turbulence" min="0" max="100" value="0">
+            <span class="value">0</span>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h3>Spawn Settings</h3>
+          <div class="control-group">
+            <label>Spawn Rate</label>
+            <input type="range" id="spawn-rate" min="1" max="100" value="30">
+            <span class="value">30</span>
+          </div>
+          <div class="control-group">
+            <label>Drop Height / Velocity</label>
+            <input type="range" id="spawn-velocity" min="0" max="200" value="50">
+            <span class="value">50</span>
+          </div>
+          <div class="control-group">
+            <label>Spread Angle</label>
+            <input type="range" id="spread-angle" min="0" max="180" value="30">
+            <span class="value">30°</span>
+          </div>
+          <div class="control-group">
+            <label>Throw Direction</label>
+            <div id="compass-container">
+              <div id="compass-arrow"></div>
+            </div>
+            <input type="hidden" id="spawn-direction" value="0">
+          </div>
+          <div class="control-group">
+            <label>Particle Size</label>
+            <input type="range" id="particle-size" min="1" max="10" value="3">
+            <span class="value">3</span>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <h3>Visual Settings</h3>
+          <div class="control-group">
+            <label>Color</label>
+            <input type="color" id="fluid-color" value="#ff0000">
+          </div>
+          <div class="control-group">
+            <label>Opacity</label>
+            <input type="range" id="opacity" min="10" max="100" value="80">
+            <span class="value">80%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="export-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Export Options</h2>
+        <button class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="export-type-selector">
+          <button class="export-type-btn active" data-type="texture">Single Texture</button>
+          <button class="export-type-btn" data-type="flipbook">Flipbook</button>
+        </div>
+
+        <div id="texture-options" class="export-options">
+          <div class="control-group">
+            <label>Resolution</label>
+            <select id="texture-resolution">
+              <option value="512">512x512</option>
+              <option value="1024" selected>1024x1024</option>
+              <option value="2048">2048x2048</option>
+              <option value="4096">4096x4096</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="export-depth">
+              Include Depth Map
+            </label>
+          </div>
+        </div>
+
+        <div id="flipbook-options" class="export-options hidden">
+          <div class="control-group">
+            <label>Frames</label>
+            <input type="number" id="frame-count" min="4" max="64" value="16">
+          </div>
+          <div class="control-group">
+            <label>Frame Resolution</label>
+            <select id="flipbook-resolution">
+              <option value="256">256x256</option>
+              <option value="512" selected>512x512</option>
+              <option value="1024">1024x1024</option>
+            </select>
+          </div>
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="frame-blending" checked>
+              Enable Frame Blending
+            </label>
+          </div>
+          <div class="control-group">
+            <label>Blend Strength</label>
+            <input type="range" id="blend-strength" min="0" max="100" value="50">
+            <span class="value">50%</span>
+          </div>
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="flipbook-depth">
+              Include Depth Map
+            </label>
+          </div>
+          <!-- Preview removed, replaced with Record workflow -->
+          <div class="control-group" style="margin-top: 10px; font-size: 12px; color: #aaa; line-height: 1.4;">
+            <p><strong>Note:</strong> Flipbooks will reconstruct your entire session (since last Reset) and fit it into the selected frame count.</p>
+          </div>
+        </div>
+
+        <div class="progress-container hidden" id="export-progress">
+          <div class="progress-bar">
+            <div class="progress-fill"></div>
+          </div>
+          <div class="progress-text">Exporting... 0%</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancel-export" class="btn-secondary">Cancel</button>
+        <button id="confirm-export" class="btn-primary">Export / Record</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="main.js"></script>
+</body>
+</html>
