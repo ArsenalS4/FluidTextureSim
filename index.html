@@ -12,6 +12,75 @@
 </head>
 <body>
   <div id="app">
+    <div id="instructions-modal" class="modal active">
+      <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+          <h2>Welcome to Fluid Simulator</h2>
+          <button class="close-btn" id="close-instructions">&times;</button>
+        </div>
+        <div class="modal-body">
+          <p class="intro-text">
+            A professional-grade interactive fluid simulation tool designed for game developers and artists. 
+            Simulate realistic liquids, generate assets, and export them directly to your game engine.
+          </p>
+          
+          <div class="instruction-grid">
+            <div class="instruction-item">
+              <h3>🎨 Simulation Modes</h3>
+              <ul class="detailed-list">
+                <li>
+                  <strong>Wall Splatter:</strong> Simulates liquid hitting a vertical surface. The fluid drips down due to gravity, leaving streaks. Perfect for blood splatters, leaks, or rainy windows.
+                </li>
+                <li>
+                  <strong>Floor Splatter:</strong> Simulates liquid hitting a horizontal surface. It spreads organically using a height-map based fluid simulation, creating realistic irregular puddles.
+                </li>
+                <li>
+                  <strong>One Click Pool:</strong> A procedural tool for instantly generating complete, realistic pools. It fills a volume with depth variation (dark centers, transparent edges) ideal for decals.
+                </li>
+                <li>
+                  <strong>Smart Expansion:</strong> An advanced mode where fluid flows intelligently to fill available space, respecting terrain roughness and permeability. Great for "oozing" effects.
+                </li>
+                <li>
+                  <strong>Experimental (Grid Fluid):</strong> A cellular automata based simulation for testing new flow algorithms.
+                </li>
+              </ul>
+            </div>
+            
+            <div class="instruction-item">
+              <h3>✏️ Shape Masking</h3>
+              <p>Restrict fluid to specific shapes to fit your game assets:</p>
+              <ul>
+                <li><strong>Draw Area:</strong> Use the brush tool to paint valid areas directly on the canvas.</li>
+                <li><strong>Upload PNG:</strong> Upload a black and white mask. Fluid will only exist in the white areas.</li>
+              </ul>
+            </div>
+
+            <div class="instruction-item">
+              <h3>🛠️ Controls & Inputs</h3>
+              <ul>
+                <li><strong>Left Click / Touch:</strong> Spawn fluid or paint mask shapes.</li>
+                <li><strong>Middle Mouse / Space + Drag:</strong> Pan the infinite canvas.</li>
+                <li><strong>Scroll Wheel:</strong> Zoom in and out.</li>
+                <li><strong>Properties Panel:</strong> Press ⚙️ to tweak viscosity, gravity, surface tension, and more.</li>
+              </ul>
+            </div>
+
+            <div class="instruction-item">
+              <h3>💾 Export Pipeline</h3>
+              <p>Generate production-ready assets:</p>
+              <ul>
+                <li><strong>Textures:</strong> Export high-res PNGs (up to 4096px). Includes <strong>Depth Maps</strong> and <strong>Normal Maps</strong>.</li>
+                <li><strong>Flipbooks:</strong> "Record" your simulation. The tool replays your actions deterministically and renders them into a sprite sheet (flipbook) with frame blending. Perfect for animated blood pools or splashes.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="start-btn" class="btn-primary">Start Creating</button>
+        </div>
+      </div>
+    </div>
+
     <div id="canvas-container">
       <div id="canvas-wrapper">
         <canvas id="fluid-canvas"></canvas>
@@ -25,12 +94,21 @@
     <!-- SVG Filter for Fluid Effect -->
     <svg style="position: absolute; width: 0; height: 0; pointer-events: none;">
       <defs>
-        <filter id="fluid-goo">
-          <!-- Reduced blur for tighter edges -->
+        <filter id="fluid-goo" color-interpolation-filters="sRGB">
+          <!-- Sharper Blur for higher fidelity -->
           <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
-          <!-- Adjusted matrix for sharper threshold -->
-          <feColorMatrix id="goo-matrix" in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -9" result="goo" />
-          <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+          <!-- High contrast alpha thresholding for sharp liquid edges -->
+          <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 25 -9" result="goo" />
+          <!-- Enhanced Specular Highlights -->
+          <feSpecularLighting in="blur" surfaceScale="5" specularConstant="1.8" specularExponent="40" lighting-color="#ffffff" result="specular">
+            <fePointLight x="500" y="-1000" z="500" />
+          </feSpecularLighting>
+          <!-- Composite specular onto the liquid shape -->
+          <feComposite in="specular" in2="goo" operator="in" result="specularOut" />
+          <!-- Blend original color -->
+          <feComposite in="SourceGraphic" in2="goo" operator="atop" result="diffuse" />
+          <!-- Final blend -->
+          <feBlend in="specularOut" in2="diffuse" mode="screen" />
         </filter>
         <!-- Depth Map Filter (Grayscale) -->
         <filter id="fluid-depth">
@@ -44,6 +122,7 @@
       <div class="controls-header">
         <button id="toggle-controls" class="icon-btn">⚙️</button>
         <div class="header-actions">
+          <button id="pause-btn" class="btn-secondary" style="min-width: 60px;">Pause</button>
           <button id="reset-btn" class="btn-secondary">Reset</button>
           <button id="export-btn" class="btn-primary">Export</button>
         </div>
@@ -69,18 +148,22 @@
           <h3>Simulation Mode</h3>
           <div class="mode-selector">
             <button class="mode-btn active" data-mode="wall">Wall Splatter</button>
-            <button class="mode-btn" data-mode="floor">Floor Pool</button>
+            <button class="mode-btn" data-mode="floor">Floor Splatter</button>
             <button class="mode-btn" data-mode="one-click">One Click Pool</button>
+            <button class="mode-btn" data-mode="smart">Smart Expansion</button>
+            <button class="mode-btn" data-mode="experimental" style="grid-column: span 3; background: #222; border: 1px dashed #666;">Experimental (Grid Fluid)</button>
           </div>
           
           <div id="pool-shape-controls" class="hidden" style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px;">
             <label style="margin-bottom: 8px; display: block;">Shape Constraint</label>
             <div style="display: flex; gap: 8px; margin-bottom: 8px;">
                <button id="draw-shape-btn" class="btn-secondary" style="flex: 1; font-size: 12px;">✏️ Draw Area</button>
+               <button id="upload-shape-btn" class="btn-secondary" style="flex: 1; font-size: 12px;">📂 Upload PNG</button>
                <button id="clear-shape-btn" class="btn-secondary" style="width: 40px;" title="Clear Shape">🗑️</button>
+               <input type="file" id="mask-upload" accept="image/png" style="display: none;">
             </div>
             <div style="font-size: 10px; color: #aaa; line-height: 1.2;">
-              Draw a shape, then turn off draw mode to click and fill it.
+              Draw a shape or upload a PNG mask, then click to fill it.
             </div>
           </div>
 
@@ -136,6 +219,31 @@
             <input type="range" id="turbulence" min="0" max="100" value="0">
             <span class="value">0</span>
           </div>
+          <div class="control-group">
+            <label>Pool Shape Randomness</label>
+            <input type="range" id="pooling-randomness" min="0" max="100" value="20">
+            <span class="value">20</span>
+          </div>
+          <div class="control-group">
+            <label style="justify-content: space-between;">
+              <span>Lifetime</span>
+              <span style="font-size: 10px; display: flex; align-items: center; gap: 4px;">
+                 <input type="checkbox" id="infinite-lifetime" style="width: 14px; height: 14px;"> Infinite
+              </span>
+            </label>
+            <input type="range" id="particle-lifetime" min="1" max="60" value="10">
+            <span class="value">10s</span>
+          </div>
+          <div class="control-group">
+            <label>Time Scale</label>
+            <input type="range" id="time-scale" min="0" max="200" value="100">
+            <span class="value">1.00x</span>
+          </div>
+          <div class="control-group">
+            <label>Substeps</label>
+            <input type="range" id="substeps" min="1" max="10" value="1">
+            <span class="value">1</span>
+          </div>
         </div>
 
         <div class="control-section">
@@ -166,6 +274,11 @@
             <label>Particle Size</label>
             <input type="range" id="particle-size" min="1" max="10" value="3">
             <span class="value">3</span>
+          </div>
+          <div class="control-group">
+            <label>Size Variance</label>
+            <input type="range" id="size-randomness" min="0" max="100" value="50">
+            <span class="value">50%</span>
           </div>
         </div>
 
@@ -213,6 +326,12 @@
               Include Depth Map
             </label>
           </div>
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="export-normal">
+              Include Normal Map
+            </label>
+          </div>
         </div>
 
         <div id="flipbook-options" class="export-options hidden">
@@ -243,6 +362,12 @@
             <label>
               <input type="checkbox" id="flipbook-depth">
               Include Depth Map
+            </label>
+          </div>
+          <div class="control-group">
+            <label>
+              <input type="checkbox" id="flipbook-normal">
+              Include Normal Map
             </label>
           </div>
           <!-- Preview removed, replaced with Record workflow -->

@@ -25,8 +25,8 @@ class App {
 
     // Recording / Event Log
     this.eventLog = [];
-    this.sessionStartTime = performance.now();
-    this.isRecording = false; // Legacy flag, kept to prevent errors if referenced
+    this.simulationTime = 0;
+    this.isRecording = false;
     
     this.init();
   }
@@ -56,14 +56,14 @@ class App {
 
   resetLog() {
     this.eventLog = [];
-    this.sessionStartTime = performance.now();
+    this.simulationTime = 0;
     // Log full initial configuration state
     this.logEvent('init', this.simulator.getState());
   }
 
   logEvent(type, data) {
     this.eventLog.push({
-        time: performance.now() - this.sessionStartTime,
+        time: this.simulationTime,
         type: type,
         data: data
     });
@@ -119,7 +119,7 @@ class App {
         
         // Toggle Shape Controls
         const shapeControls = document.getElementById('pool-shape-controls');
-        if (mode === 'one-click') {
+        if (mode === 'one-click' || mode === 'smart' || mode === 'experimental') {
             shapeControls.classList.remove('hidden');
         } else {
             shapeControls.classList.add('hidden');
@@ -137,6 +137,32 @@ class App {
     document.getElementById('clear-shape-btn').addEventListener('click', () => {
         this.simulator.clearMask();
         this.logEvent('clearMask', {});
+    });
+
+    const uploadBtn = document.getElementById('upload-shape-btn');
+    const fileInput = document.getElementById('mask-upload');
+    
+    uploadBtn.addEventListener('click', () => fileInput.click());
+    
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const reader = new FileReader();
+        reader.onload = (evt) => {
+            const dataUrl = evt.target.result;
+            const img = new Image();
+            img.onload = () => {
+                this.simulator.setMaskFromImage(img);
+                // Log the full data URL to allow replay (might be large, but necessary for exact replay)
+                this.logEvent('setMaskFromImage', dataUrl);
+            };
+            img.src = dataUrl;
+        };
+        reader.readAsDataURL(file);
+        
+        // Reset input so same file can be selected again
+        fileInput.value = '';
     });
 
     // Range inputs
@@ -164,6 +190,11 @@ class App {
         this.simulator.setTurbulence(v);
         this.logEvent('setTurbulence', v);
     });
+    this.setupRangeInput('pooling-randomness', (val) => {
+        const v = val / 100;
+        this.simulator.setPoolingRandomness(v);
+        this.logEvent('setPoolingRandomness', v);
+    });
     this.setupRangeInput('spawn-rate', (val) => {
         this.simulator.setSpawnRate(val);
         this.logEvent('setSpawnRate', val);
@@ -180,10 +211,35 @@ class App {
         this.simulator.setParticleSize(val);
         this.logEvent('setParticleSize', val);
     });
+    this.setupRangeInput('size-randomness', (val) => {
+        const v = val / 100;
+        this.simulator.setSizeRandomness(v);
+        this.logEvent('setSizeRandomness', v);
+    });
     this.setupRangeInput('opacity', (val) => {
         const v = val / 100;
         this.simulator.setOpacity(v);
         this.logEvent('setOpacity', v);
+    });
+    this.setupRangeInput('time-scale', (val) => {
+        const v = val / 100;
+        this.simulator.setTimeScale(v);
+        this.logEvent('setTimeScale', v);
+    });
+    this.setupRangeInput('substeps', (val) => {
+        this.simulator.setSubsteps(val);
+        this.logEvent('setSubsteps', val);
+    });
+    
+    // Lifetime Controls
+    this.setupRangeInput('particle-lifetime', (val) => {
+        this.simulator.setParticleLifetime(val);
+        this.logEvent('setParticleLifetime', val);
+    });
+    const infLifetime = document.getElementById('infinite-lifetime');
+    infLifetime.addEventListener('change', (e) => {
+        this.simulator.setInfiniteLifetime(e.target.checked);
+        this.logEvent('setInfiniteLifetime', e.target.checked);
     });
 
     // Spawn Mode
@@ -210,6 +266,14 @@ class App {
         this.updateRangeDisplay('density', settings.density);
         document.getElementById('fluid-color').value = settings.color;
         this.updateRangeDisplay('opacity', settings.opacity * 100);
+        if (settings.tension !== undefined) {
+             this.updateRangeDisplay('surface-tension', settings.tension * 100);
+        }
+        if (settings.turbulence !== undefined) {
+             this.updateRangeDisplay('turbulence', settings.turbulence * 100);
+        } else {
+             this.updateRangeDisplay('turbulence', 0);
+        }
       }
       this.updateMatrixFilter();
     });
@@ -226,10 +290,26 @@ class App {
     // Compass
     this.setupCompass();
 
+    // Pause button
+    const pauseBtn = document.getElementById('pause-btn');
+    pauseBtn.addEventListener('click', () => {
+      const isPaused = this.simulator.togglePause();
+      pauseBtn.textContent = isPaused ? "Resume" : "Pause";
+      pauseBtn.style.background = isPaused ? "#fff" : "";
+      pauseBtn.style.color = isPaused ? "#000" : "";
+    });
+
     // Reset button
     document.getElementById('reset-btn').addEventListener('click', () => {
       this.simulator.reset();
       this.resetLog();
+      // Ensure we unpause on reset if paused
+      if (this.simulator.paused) {
+        this.simulator.togglePause();
+        pauseBtn.textContent = "Pause";
+        pauseBtn.style.background = "";
+        pauseBtn.style.color = "";
+      }
     });
 
     // Center View
@@ -248,6 +328,7 @@ class App {
         this.overlayCanvas.width = w;
         this.overlayCanvas.height = h;
         this.simulator.resize(w, h);
+        this.logEvent('resize', { width: w, height: h });
         this.centerView();
     };
     wInput.addEventListener('change', updateSize);
@@ -262,6 +343,12 @@ class App {
 
     // Export modal
     this.setupExportModal();
+
+    // Instructions Modal
+    const instructionsModal = document.getElementById('instructions-modal');
+    const closeInstructions = () => instructionsModal.classList.remove('active');
+    document.getElementById('close-instructions').addEventListener('click', closeInstructions);
+    document.getElementById('start-btn').addEventListener('click', closeInstructions);
   }
 
   setupRangeInput(id, callback) {
@@ -275,6 +362,7 @@ class App {
       let displayValue = val;
       if (id === 'spread-angle') displayValue = val + '°';
       else if (id === 'opacity') displayValue = val + '%';
+      else if (id === 'time-scale') displayValue = (val / 100).toFixed(2) + 'x';
       
       valueSpan.textContent = displayValue;
     });
@@ -388,9 +476,10 @@ class App {
     const resolution = parseInt(document.getElementById('flipbook-resolution').value);
     const frameCount = parseInt(document.getElementById('frame-count').value);
     const includeDepth = document.getElementById('flipbook-depth').checked;
+    const includeNormal = document.getElementById('flipbook-normal').checked;
     
     // We export the entire session duration
-    const duration = performance.now() - this.sessionStartTime;
+    const duration = this.simulationTime;
     
     // UI Feedback
     const modal = document.getElementById('export-modal');
@@ -406,6 +495,7 @@ class App {
         frameCount,
         resolution,
         includeDepth,
+        includeNormal,
         (progress) => {
             const progressFill = progressContainer.querySelector('.progress-fill');
             const progressText = progressContainer.querySelector('.progress-text');
@@ -424,11 +514,12 @@ class App {
   async exportTexture() {
     const resolution = parseInt(document.getElementById('texture-resolution').value);
     const includeDepth = document.getElementById('export-depth').checked;
+    const includeNormal = document.getElementById('export-normal').checked;
     const progressContainer = document.getElementById('export-progress');
     
     progressContainer.classList.remove('hidden');
     
-    await this.exportManager.exportTexture(resolution, includeDepth, (progress) => {
+    await this.exportManager.exportTexture(resolution, includeDepth, includeNormal, (progress) => {
       const progressFill = progressContainer.querySelector('.progress-fill');
       const progressText = progressContainer.querySelector('.progress-text');
       progressFill.style.width = progress + '%';
@@ -501,6 +592,12 @@ class App {
           if (this.simulator.mode === 'one-click') {
              this.simulator.spawnPool(pos.x, pos.y);
              this.logEvent('spawnPool', { x: pos.x, y: pos.y }); 
+          } else if (this.simulator.mode === 'experimental') {
+             this.simulator.spawnExperimental(pos.x, pos.y);
+             this.logEvent('spawnExperimental', { x: pos.x, y: pos.y });
+          } else if (this.simulator.mode === 'smart') {
+             this.simulator.spawn(pos.x, pos.y);
+             this.logEvent('spawn', { x: pos.x, y: pos.y, mode: 'smart' });
           } else if (this.simulator.spawnMode === 'drop') {
              this.simulator.spawn(pos.x, pos.y);
              this.logEvent('spawn', { x: pos.x, y: pos.y, mode: 'drop' });
@@ -562,6 +659,12 @@ class App {
             if (this.simulator.mode === 'one-click') {
                  this.simulator.spawnPool(pos.x, pos.y);
                  this.logEvent('spawnPool', { x: pos.x, y: pos.y });
+            } else if (this.simulator.mode === 'experimental') {
+                 this.simulator.spawnExperimental(pos.x, pos.y);
+                 this.logEvent('spawnExperimental', { x: pos.x, y: pos.y });
+            } else if (this.simulator.mode === 'smart') {
+                 this.simulator.spawn(pos.x, pos.y);
+                 this.logEvent('spawn', { x: pos.x, y: pos.y, mode: 'smart' });
             } else if (this.simulator.spawnMode === 'drop') {
                  this.simulator.spawn(pos.x, pos.y);
                  this.logEvent('spawn', { x: pos.x, y: pos.y, mode: 'drop' });
@@ -634,12 +737,24 @@ class App {
 
   start() {
     let lastTime = performance.now();
+    let accumulator = 0;
+    const FIXED_STEP = 1 / 60;
     
     const loop = (currentTime) => {
-      const dt = Math.min((currentTime - lastTime) / 1000, 0.016);
+      let frameTime = (currentTime - lastTime) / 1000;
       lastTime = currentTime;
       
-      this.update(dt);
+      // Prevent spiral of death
+      if (frameTime > 0.25) frameTime = 0.25;
+      
+      accumulator += frameTime;
+
+      while (accumulator >= FIXED_STEP) {
+        this.update(FIXED_STEP);
+        this.simulationTime += FIXED_STEP;
+        accumulator -= FIXED_STEP;
+      }
+      
       this.render();
       
       requestAnimationFrame(loop);

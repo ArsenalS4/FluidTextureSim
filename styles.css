@@ -505,6 +505,55 @@ body {
   text-align: center;
 }
 
+/* Instructions Modal Styling */
+.intro-text {
+  font-size: 16px;
+  color: #ccc;
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.instruction-grid {
+  display: grid;
+  gap: 24px;
+}
+
+.instruction-item h3 {
+  color: #fff;
+  font-size: 15px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+  padding-bottom: 4px;
+}
+
+.instruction-item ul {
+  list-style: none;
+  padding: 0;
+}
+
+.instruction-item li {
+  font-size: 14px;
+  color: #aaa;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.detailed-list li {
+  margin-bottom: 12px;
+  padding-left: 8px;
+  border-left: 2px solid rgba(255,255,255,0.1);
+}
+
+.instruction-item strong {
+  color: #eee;
+}
+
+.instruction-item p {
+  font-size: 14px;
+  color: #aaa;
+  line-height: 1.4;
+}
+
 @media (min-width: 768px) {
   #controls-panel {
     right: auto;
