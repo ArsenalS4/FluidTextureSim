@@ -4,14 +4,47 @@
   box-sizing: border-box;
 }
 
+:root {
+  --bg-color: #000;
+  --panel-bg: rgba(0, 0, 0, 0.95);
+  --panel-border: rgba(255, 255, 255, 0.1);
+  --text-main: #fff;
+  --text-dim: rgba(255, 255, 255, 0.7);
+  --input-bg: rgba(255, 255, 255, 0.05);
+  --input-border: rgba(255, 255, 255, 0.1);
+  --accent-color: #fff;
+  --accent-text: #000;
+  --modal-bg: #1a1a1a;
+  --modal-overlay: rgba(0, 0, 0, 0.9);
+  --btn-sec-bg: rgba(255, 255, 255, 0.1);
+  --btn-sec-hover: rgba(255, 255, 255, 0.2);
+}
+
+body.light-theme {
+  --bg-color: #e0e0e0;
+  --panel-bg: rgba(255, 255, 255, 0.95);
+  --panel-border: rgba(0, 0, 0, 0.1);
+  --text-main: #111;
+  --text-dim: rgba(0, 0, 0, 0.6);
+  --input-bg: rgba(0, 0, 0, 0.05);
+  --input-border: rgba(0, 0, 0, 0.1);
+  --accent-color: #222;
+  --accent-text: #fff;
+  --modal-bg: #fff;
+  --modal-overlay: rgba(255, 255, 255, 0.9);
+  --btn-sec-bg: rgba(0, 0, 0, 0.1);
+  --btn-sec-hover: rgba(0, 0, 0, 0.2);
+}
+
 body {
   font-family: 'Noto Sans', sans-serif;
   overflow: hidden;
-  background: #000;
-  color: #fff;
+  background: var(--bg-color);
+  color: var(--text-main);
   touch-action: none;
   height: 100vh;
   height: 100dvh;
+  transition: background 0.3s;
 }
 
 #app {
@@ -27,7 +60,7 @@ body {
   flex: 1;
   position: relative;
   overflow: hidden;
-  background: #111; /* Slightly lighter to see canvas bounds */
+  background: #111; /* Keep canvas container dark for better contrast of fluid */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -109,9 +142,10 @@ body {
   bottom: 0;
   left: 0;
   right: 0;
-  background: rgba(0, 0, 0, 0.95);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--panel-bg);
+  border-top: 1px solid var(--panel-border);
   z-index: 100;
+  transition: background 0.3s, border 0.3s;
 }
 
 .controls-header {
@@ -119,7 +153,7 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--panel-border);
 }
 
 .header-actions {
@@ -128,9 +162,9 @@ body {
 }
 
 .icon-btn {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--btn-sec-bg);
   border: none;
-  color: #fff;
+  color: var(--text-main);
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 18px;
@@ -138,9 +172,9 @@ body {
   transition: all 0.2s;
 }
 
-.icon-btn:active {
+.icon-btn:active, .icon-btn:hover {
   transform: scale(0.95);
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--btn-sec-hover);
 }
 
 .btn-primary, .btn-secondary {
@@ -155,8 +189,8 @@ body {
 }
 
 .btn-primary {
-  background: #fff;
-  color: #000;
+  background: var(--accent-color);
+  color: var(--accent-text);
 }
 
 .btn-primary:active {
@@ -165,13 +199,13 @@ body {
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--btn-sec-bg);
+  color: var(--text-main);
 }
 
 .btn-secondary:active {
   transform: scale(0.95);
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--btn-sec-hover);
 }
 
 #controls-content {
@@ -187,14 +221,14 @@ body {
 
 .control-section {
   padding: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--panel-border);
 }
 
 .control-section h3 {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 12px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }
@@ -207,9 +241,9 @@ body {
 
 .mode-btn {
   padding: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-main);
   border-radius: 6px;
   font-size: 11px;
   cursor: pointer;
@@ -218,9 +252,9 @@ body {
 }
 
 .mode-btn.active {
-  background: #fff;
-  color: #000;
-  border-color: #fff;
+  background: var(--accent-color);
+  color: var(--accent-text);
+  border-color: var(--accent-color);
 }
 
 .mode-btn:active, .spawn-mode-btn:active {
@@ -229,9 +263,9 @@ body {
 
 .spawn-mode-btn {
   padding: 8px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-main);
   border-radius: 6px;
   font-size: 12px;
   cursor: pointer;
@@ -240,15 +274,15 @@ body {
 }
 
 .spawn-mode-btn.active {
-  background: #fff;
-  color: #000;
-  border-color: #fff;
+  background: var(--accent-color);
+  color: var(--accent-text);
+  border-color: var(--accent-color);
 }
 
 #compass-container {
   width: 60px;
   height: 60px;
-  border: 2px solid rgba(255,255,255,0.2);
+  border: 2px solid var(--input-border);
   border-radius: 50%;
   margin: 10px auto;
   position: relative;
@@ -287,7 +321,7 @@ body {
 
 .control-group label {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text-dim);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -298,7 +332,7 @@ body {
   appearance: none;
   width: 100%;
   height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--input-border);
   border-radius: 2px;
   outline: none;
 }
@@ -308,7 +342,7 @@ body {
   appearance: none;
   width: 18px;
   height: 18px;
-  background: #fff;
+  background: var(--accent-color);
   border-radius: 50%;
   cursor: pointer;
 }
@@ -316,7 +350,7 @@ body {
 .control-group input[type="range"]::-moz-range-thumb {
   width: 18px;
   height: 18px;
-  background: #fff;
+  background: var(--accent-color);
   border-radius: 50%;
   cursor: pointer;
   border: none;
@@ -324,14 +358,14 @@ body {
 
 .control-group .value {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text-dim);
   align-self: flex-end;
 }
 
 .control-group input[type="color"] {
   width: 100%;
   height: 44px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--input-border);
   border-radius: 6px;
   background: transparent;
   cursor: pointer;
@@ -340,9 +374,9 @@ body {
 .control-group select {
   width: 100%;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-main);
   border-radius: 6px;
   font-size: 14px;
   font-family: 'Noto Sans', sans-serif;
@@ -351,9 +385,9 @@ body {
 .control-group input[type="number"] {
   width: 100%;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--text-main);
   border-radius: 6px;
   font-size: 14px;
   font-family: 'Noto Sans', sans-serif;
@@ -372,7 +406,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.9);
+  background: var(--modal-overlay);
   z-index: 1000;
   align-items: center;
   justify-content: center;
@@ -384,7 +418,8 @@ body {
 }
 
 .modal-content {
-  background: #1a1a1a;
+  background: var(--modal-bg);
+  color: var(--text-main);
   border-radius: 12px;
   max-width: 500px;
   width: 100%;
@@ -392,11 +427,12 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 
 .modal-header {
   padding: 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--panel-border);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -405,12 +441,13 @@ body {
 .modal-header h2 {
   font-size: 18px;
   font-weight: 600;
+  color: var(--text-main);
 }
 
 .close-btn {
   background: none;
   border: none;
-  color: #fff;
+  color: var(--text-main);
   font-size: 24px;
   cursor: pointer;
   padding: 0;
@@ -424,7 +461,7 @@ body {
 }
 
 .close-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--btn-sec-bg);
 }
 
 .modal-body {
@@ -435,10 +472,128 @@ body {
 
 .modal-footer {
   padding: 20px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--panel-border);
   display: flex;
   gap: 12px;
   justify-content: flex-end;
+}
+
+/* Instructions Styling */
+.intro-text {
+  font-size: 15px;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.instruction-menu {
+  display: grid;
+  gap: 12px;
+}
+
+.instruction-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--btn-sec-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  color: var(--text-main);
+}
+
+.instruction-card:hover {
+  background: var(--btn-sec-hover);
+  transform: translateY(-2px);
+}
+
+.card-icon {
+  font-size: 24px;
+}
+
+.card-content h3 {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.card-content p {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.card-arrow {
+  margin-left: auto;
+  font-size: 18px;
+  opacity: 0.5;
+}
+
+.instruction-detail {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.detail-block {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--panel-border);
+}
+
+.detail-block:last-child {
+  border-bottom: none;
+}
+
+.detail-block h4 {
+  font-size: 14px;
+  color: var(--text-main);
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.detail-block p {
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 8px;
+}
+
+.detail-block ul {
+  padding-left: 18px;
+}
+
+.detail-block li {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.important-setting {
+  background: rgba(255, 200, 0, 0.1);
+  border: 1px solid rgba(255, 200, 0, 0.3);
+  padding: 10px;
+  border-radius: 6px;
+}
+body.light-theme .important-setting {
+  background: rgba(255, 150, 0, 0.1);
+  border: 1px solid rgba(255, 150, 0, 0.4);
+}
+
+.tooltip-icon {
+  cursor: help;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.hidden {
+  display: none !important;
 }
 
 .export-type-selector {
@@ -466,8 +621,109 @@ body {
   border-color: #fff;
 }
 
-.export-options.hidden, #pool-shape-controls.hidden {
+.export-options.hidden, #pool-shape-controls.hidden, #ballistic-controls.hidden, #target-block.hidden {
   display: none;
+}
+
+.caliber-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.caliber-btn {
+  padding: 8px 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-radius: 4px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.caliber-btn.active {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+}
+
+#target-block {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 100px;
+  height: 100px;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: crosshair;
+  z-index: 50;
+  perspective: 600px;
+}
+
+.cube-inner {
+  width: 100%;
+  height: 100%;
+  background: rgba(200, 220, 255, 0.15);
+  border: 1px solid rgba(200, 220, 255, 0.4);
+  box-shadow: 0 0 15px rgba(200, 220, 255, 0.1);
+  position: relative;
+  transform-style: preserve-3d;
+  transform: rotateX(20deg) rotateY(-20deg);
+  transition: transform 0.1s;
+  pointer-events: none; /* Let clicks pass to children or parent */
+}
+
+/* Re-enable pointer events for the cube body interaction */
+#target-block {
+    pointer-events: auto; 
+}
+
+.cube-inner::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.05);
+  transform: translateZ(-20px);
+  pointer-events: none;
+}
+
+.cube-inner::after {
+  content: '';
+  position: absolute;
+  top: 10%; left: 10%; right: 10%; bottom: 10%;
+  border: 1px solid rgba(255,255,255,0.2);
+  pointer-events: none;
+}
+
+.move-handle {
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    width: 24px;
+    height: 24px;
+    background: #fff;
+    color: #000;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    cursor: move;
+    pointer-events: auto;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    z-index: 10;
+    transition: transform 0.2s;
+}
+
+.move-handle:hover {
+    transform: scale(1.1);
+    background: #eee;
+}
+
+#target-block:active .cube-inner {
+  transform: rotateX(20deg) rotateY(-20deg) scale(0.98);
 }
 
 #draw-shape-btn.active {
@@ -560,7 +816,7 @@ body {
     width: 320px;
     height: 100vh;
     border-top: none;
-    border-right: 1px solid rgba(255, 255, 255, 0.1);
+    border-right: 1px solid var(--panel-border);
   }
 
   #controls-content {

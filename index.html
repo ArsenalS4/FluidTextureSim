@@ -3,8 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Fluid Simulator & Flipbook Generator</title>
-  <meta name="description" content="A web-based 2D fluid simulator with export capabilities for game assets (flipbooks, textures). Features multiple material presets and simulation modes.">
+  <title>Arsenals 2D Fluid Exporter V3</title>
+  <meta name="description" content="Arsenals 2D Fluid Exporter V3 - A professional web-based 2D fluid simulation tool for generating game assets, textures, and flipbooks.">
+  <meta name="keywords" content="fluid simulation, game dev tools, texture generator, flipbook maker, 2D fluid, physics engine, sprite sheet generator, Arsenals">
+  <meta name="author" content="Arsenals">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;600&display=swap" rel="stylesheet">
@@ -13,67 +15,131 @@
 <body>
   <div id="app">
     <div id="instructions-modal" class="modal active">
-      <div class="modal-content" style="max-width: 600px;">
+      <div class="modal-content" style="max-width: 700px; height: 80vh;">
         <div class="modal-header">
-          <h2>Welcome to Fluid Simulator</h2>
-          <button class="close-btn" id="close-instructions">&times;</button>
+          <h2 id="instruction-title">Arsenals 2D Fluid Exporter V3</h2>
+          <div style="display: flex; gap: 10px;">
+             <button class="icon-btn hidden" id="back-instruction-btn">←</button>
+             <button class="close-btn" id="close-instructions">&times;</button>
+          </div>
         </div>
-        <div class="modal-body">
-          <p class="intro-text">
-            A professional-grade interactive fluid simulation tool designed for game developers and artists. 
-            Simulate realistic liquids, generate assets, and export them directly to your game engine.
-          </p>
-          
-          <div class="instruction-grid">
-            <div class="instruction-item">
-              <h3>🎨 Simulation Modes</h3>
-              <ul class="detailed-list">
-                <li>
-                  <strong>Wall Splatter:</strong> Simulates liquid hitting a vertical surface. The fluid drips down due to gravity, leaving streaks. Perfect for blood splatters, leaks, or rainy windows.
-                </li>
-                <li>
-                  <strong>Floor Splatter:</strong> Simulates liquid hitting a horizontal surface. It spreads organically using a height-map based fluid simulation, creating realistic irregular puddles.
-                </li>
-                <li>
-                  <strong>One Click Pool:</strong> A procedural tool for instantly generating complete, realistic pools. It fills a volume with depth variation (dark centers, transparent edges) ideal for decals.
-                </li>
-                <li>
-                  <strong>Smart Expansion:</strong> An advanced mode where fluid flows intelligently to fill available space, respecting terrain roughness and permeability. Great for "oozing" effects.
-                </li>
-                <li>
-                  <strong>Experimental (Grid Fluid):</strong> A cellular automata based simulation for testing new flow algorithms.
-                </li>
-              </ul>
-            </div>
+        <div class="modal-body" id="instruction-body">
+          <!-- Main View -->
+          <div id="instruction-main">
+            <p class="intro-text">
+              Welcome to <strong>Arsenals 2D Fluid Exporter V3</strong>. This tool is an advanced physics sandbox designed to create production-ready liquid assets for games. 
+              Simulate complex fluid dynamics, create seamless textures, and export animated flipbooks.
+            </p>
             
-            <div class="instruction-item">
-              <h3>✏️ Shape Masking</h3>
-              <p>Restrict fluid to specific shapes to fit your game assets:</p>
-              <ul>
-                <li><strong>Draw Area:</strong> Use the brush tool to paint valid areas directly on the canvas.</li>
-                <li><strong>Upload PNG:</strong> Upload a black and white mask. Fluid will only exist in the white areas.</li>
-              </ul>
-            </div>
+            <div class="instruction-menu">
+               <button class="instruction-card" data-target="details-modes">
+                 <div class="card-icon">🎨</div>
+                 <div class="card-content">
+                   <h3>Simulation Environments</h3>
+                   <p>Detailed breakdown of Wall, Floor, Ballistic, and Smart Expansion modes.</p>
+                 </div>
+                 <div class="card-arrow">→</div>
+               </button>
 
-            <div class="instruction-item">
-              <h3>🛠️ Controls & Inputs</h3>
-              <ul>
-                <li><strong>Left Click / Touch:</strong> Spawn fluid or paint mask shapes.</li>
-                <li><strong>Middle Mouse / Space + Drag:</strong> Pan the infinite canvas.</li>
-                <li><strong>Scroll Wheel:</strong> Zoom in and out.</li>
-                <li><strong>Properties Panel:</strong> Press ⚙️ to tweak viscosity, gravity, surface tension, and more.</li>
-              </ul>
-            </div>
+               <button class="instruction-card" data-target="details-controls">
+                 <div class="card-icon">🛠️</div>
+                 <div class="card-content">
+                   <h3>Controls & Quality</h3>
+                   <p>How to use the physics engine, masking, and quality settings.</p>
+                 </div>
+                 <div class="card-arrow">→</div>
+               </button>
 
-            <div class="instruction-item">
-              <h3>💾 Export Pipeline</h3>
-              <p>Generate production-ready assets:</p>
-              <ul>
-                <li><strong>Textures:</strong> Export high-res PNGs (up to 4096px). Includes <strong>Depth Maps</strong> and <strong>Normal Maps</strong>.</li>
-                <li><strong>Flipbooks:</strong> "Record" your simulation. The tool replays your actions deterministically and renders them into a sprite sheet (flipbook) with frame blending. Perfect for animated blood pools or splashes.</li>
-              </ul>
+               <button class="instruction-card" data-target="details-export">
+                 <div class="card-icon">💾</div>
+                 <div class="card-content">
+                   <h3>Export Pipeline</h3>
+                   <p>Guide to Textures, Depth Maps, Normal Maps, and Flipbooks.</p>
+                 </div>
+                 <div class="card-arrow">→</div>
+               </button>
             </div>
           </div>
+
+          <!-- Details: Modes -->
+          <div id="details-modes" class="instruction-detail hidden">
+             <h3>Simulation Environments</h3>
+             <div class="detail-block">
+               <h4>1. Wall Splatter</h4>
+               <p>Simulates liquid hitting a vertical surface. Gravity pulls particles down, creating realistic streaks and drips based on viscosity and accumulation.</p>
+               <ul>
+                 <li><strong>Best for:</strong> Blood hits, runny paint, leaking pipes, rainy windows.</li>
+                 <li><strong>Physics:</strong> Drops lose mass as they leave trails. Friction increases on dry surfaces.</li>
+               </ul>
+             </div>
+             <div class="detail-block">
+               <h4>2. Floor Splatter</h4>
+               <p>Simulates liquid pooling on a horizontal surface. It uses a height-field simulation to create organic, irregular puddles that spread naturally.</p>
+               <ul>
+                 <li><strong>Best for:</strong> Spilled drinks, chemical puddles, flat blood pools.</li>
+                 <li><strong>Physics:</strong> Particles repel each other to fill volume. Noise creates "fingering" at the edges.</li>
+               </ul>
+             </div>
+             <div class="detail-block">
+               <h4>3. Ballistic Velocity</h4>
+               <p>A specialized mode for high-velocity impacts. Aim a target block and fire projectiles of various calibers (9mm, Shotgun, Rifle). Generates a mix of high-speed mist and heavy dripping.</p>
+               <ul>
+                 <li><strong>Best for:</strong> Action games, forensic reconstruction visuals, dynamic decals.</li>
+               </ul>
+             </div>
+             <div class="detail-block">
+               <h4>4. Smart Expansion</h4>
+               <p>An algorithmic flow mode that "fills" space intelligently. It uses cellular automata to simulate viscous fingering and pressure.</p>
+               <ul>
+                 <li><strong>Best for:</strong> Alien creep, slowly spreading infection, filling specific mask shapes perfectly.</li>
+               </ul>
+             </div>
+          </div>
+
+          <!-- Details: Controls -->
+          <div id="details-controls" class="instruction-detail hidden">
+             <h3>Controls & Quality</h3>
+             <div class="detail-block">
+               <h4>Quality Settings (Important!)</h4>
+               <p><strong>Substeps:</strong> Located at the top of the settings panel. This is the most critical setting for simulation accuracy.</p>
+               <ul>
+                 <li><strong>High (3-5):</strong> Smoother flow, better collision, no "tunneling" through walls. slower performance.</li>
+                 <li><strong>Low (1-2):</strong> Faster performance, but fast particles might pass through objects.</li>
+               </ul>
+             </div>
+             <div class="detail-block">
+                <h4>Input Map</h4>
+                <ul>
+                  <li><strong>Left Click / Touch:</strong> Spawn fluid or paint mask.</li>
+                  <li><strong>Middle Mouse / Space + Drag:</strong> Pan the camera.</li>
+                  <li><strong>Scroll Wheel:</strong> Zoom canvas.</li>
+                </ul>
+             </div>
+             <div class="detail-block">
+               <h4>Shape Masking</h4>
+               <p>Restrict fluid to specific areas. You can draw a boundary manually or upload a black/white PNG mask. White areas allow fluid; black areas block it.</p>
+             </div>
+          </div>
+
+          <!-- Details: Export -->
+          <div id="details-export" class="instruction-detail hidden">
+             <h3>Export Pipeline</h3>
+             <p>Arsenals V3 allows you to export your creation directly to game engines (Unity, Unreal, Godot).</p>
+             <div class="detail-block">
+               <h4>Static Textures</h4>
+               <p>Exports the current frame as a high-resolution PNG.</p>
+               <ul>
+                 <li><strong>Depth Map:</strong> Grayscale height map. Essential for parallax mapping or water shaders.</li>
+                 <li><strong>Normal Map:</strong> Purple-tangent space normal map for lighting interactions.</li>
+               </ul>
+             </div>
+             <div class="detail-block">
+               <h4>Flipbooks</h4>
+               <p>Records the entire history of your session and re-renders it frame-by-frame into a sprite sheet.</p>
+               <p><em>Note: This re-simulates your actions deterministically to ensure high-quality rendering without lag during the recording phase.</em></p>
+             </div>
+          </div>
+
         </div>
         <div class="modal-footer">
           <button id="start-btn" class="btn-primary">Start Creating</button>
@@ -86,6 +152,11 @@
         <canvas id="fluid-canvas"></canvas>
         <canvas id="overlay-canvas"></canvas>
         <div id="spawn-overlay"></div>
+        <div id="target-block" class="hidden">
+           <div class="cube-inner">
+             <div class="move-handle" title="Drag to Move">✥</div>
+           </div>
+        </div>
       </div>
     </div>
     
@@ -120,7 +191,10 @@
     
     <div id="controls-panel">
       <div class="controls-header">
-        <button id="toggle-controls" class="icon-btn">⚙️</button>
+        <div style="display:flex; gap:8px;">
+            <button id="toggle-controls" class="icon-btn">⚙️</button>
+            <button id="theme-toggle" class="icon-btn" title="Toggle Theme">☀️</button>
+        </div>
         <div class="header-actions">
           <button id="pause-btn" class="btn-secondary" style="min-width: 60px;">Pause</button>
           <button id="reset-btn" class="btn-secondary">Reset</button>
@@ -129,57 +203,11 @@
       </div>
       
       <div id="controls-content" class="collapsed">
+        
+        <!-- 1. Presets (Highest Priority) -->
         <div class="control-section">
-          <h3>Canvas</h3>
+          <h3>Material Preset</h3>
           <div class="control-group">
-            <label>Dimensions</label>
-            <div style="display: flex; gap: 8px;">
-              <input type="number" id="canvas-width" value="1024" step="128">
-              <span style="align-self: center;">x</span>
-              <input type="number" id="canvas-height" value="1024" step="128">
-            </div>
-          </div>
-          <div class="control-group">
-             <button id="center-view-btn" class="btn-secondary" style="width: 100%;">Reset View / Fit</button>
-          </div>
-        </div>
-
-        <div class="control-section">
-          <h3>Simulation Mode</h3>
-          <div class="mode-selector">
-            <button class="mode-btn active" data-mode="wall">Wall Splatter</button>
-            <button class="mode-btn" data-mode="floor">Floor Splatter</button>
-            <button class="mode-btn" data-mode="one-click">One Click Pool</button>
-            <button class="mode-btn" data-mode="smart">Smart Expansion</button>
-            <button class="mode-btn" data-mode="experimental" style="grid-column: span 3; background: #222; border: 1px dashed #666;">Experimental (Grid Fluid)</button>
-          </div>
-          
-          <div id="pool-shape-controls" class="hidden" style="margin-top: 12px; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px;">
-            <label style="margin-bottom: 8px; display: block;">Shape Constraint</label>
-            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-               <button id="draw-shape-btn" class="btn-secondary" style="flex: 1; font-size: 12px;">✏️ Draw Area</button>
-               <button id="upload-shape-btn" class="btn-secondary" style="flex: 1; font-size: 12px;">📂 Upload PNG</button>
-               <button id="clear-shape-btn" class="btn-secondary" style="width: 40px;" title="Clear Shape">🗑️</button>
-               <input type="file" id="mask-upload" accept="image/png" style="display: none;">
-            </div>
-            <div style="font-size: 10px; color: #aaa; line-height: 1.2;">
-              Draw a shape or upload a PNG mask, then click to fill it.
-            </div>
-          </div>
-
-          <div class="control-group" style="margin-top: 12px;">
-            <label>Spawn Type</label>
-            <div class="mode-selector">
-              <button class="spawn-mode-btn active" data-spawn="spray">Spray/Stream</button>
-              <button class="spawn-mode-btn" data-spawn="drop">Single Drop</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="control-section">
-          <h3>Material</h3>
-          <div class="control-group">
-            <label>Preset</label>
             <select id="material-select">
               <option value="custom">Custom</option>
               <option value="water">Water</option>
@@ -192,17 +220,77 @@
           </div>
         </div>
 
+        <!-- 2. Simulation Environment -->
         <div class="control-section">
-          <h3>Fluid Properties</h3>
-          <div class="control-group">
-            <label>Viscosity</label>
-            <input type="range" id="viscosity" min="0" max="100" value="20">
-            <span class="value">20</span>
+          <h3>Simulation Environment</h3>
+          <div class="mode-selector">
+            <button class="mode-btn active" data-mode="wall">Wall Splatter</button>
+            <button class="mode-btn" data-mode="floor">Floor Splatter</button>
+            <button class="mode-btn" data-mode="one-click">One Click Pool</button>
+            <button class="mode-btn" data-mode="smart">Smart Expansion</button>
+            <button class="mode-btn" data-mode="vector-drip">Vector Drip</button>
+            <button class="mode-btn" data-mode="ballistic">Ballistic Velocity</button>
+            <button class="mode-btn" data-mode="experimental" style="grid-column: span 3; background: #222; border: 1px dashed #666;">Experimental (Grid Fluid)</button>
+          </div>
+
+          <!-- Specific Mode Controls -->
+          <div id="ballistic-controls" class="hidden" style="margin-top: 12px;">
+            <label>Caliber</label>
+            <div class="caliber-grid">
+               <button class="caliber-btn" data-cal="22lr">.22 LR</button>
+               <button class="caliber-btn active" data-cal="9mm">9mm</button>
+               <button class="caliber-btn" data-cal="45acp">.45 ACP</button>
+               <button class="caliber-btn" data-cal="556">5.56mm</button>
+               <button class="caliber-btn" data-cal="12ga">12 Gauge</button>
+            </div>
+            <div class="control-group" style="margin-top: 12px;">
+              <label>Distance from Canvas</label>
+              <input type="range" id="target-distance" min="0" max="100" value="30">
+            </div>
+            <div class="instruction-tiny" style="margin-top:8px; font-size:11px; opacity:0.7;">
+              Drag ✥ to move. Drag cube body to aim.
+            </div>
+          </div>
+          
+          <div id="pool-shape-controls" class="hidden" style="margin-top: 12px; padding: 10px; background: rgba(128,128,128,0.1); border-radius: 6px;">
+            <label style="margin-bottom: 8px; display: block;">Shape Constraint</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+               <button id="draw-shape-btn" class="btn-secondary" style="flex: 1; font-size: 12px;">✏️ Draw Area</button>
+               <button id="upload-shape-btn" class="btn-secondary" style="flex: 1; font-size: 12px;">📂 Upload PNG</button>
+               <button id="clear-shape-btn" class="btn-secondary" style="width: 40px;" title="Clear Shape">🗑️</button>
+               <input type="file" id="mask-upload" accept="image/png" style="display: none;">
+            </div>
+            <div style="font-size: 10px; opacity: 0.7; line-height: 1.2;">
+              Draw a shape or upload a PNG mask, then click to fill it.
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Quality & Performance (Substeps Priority) -->
+        <div class="control-section">
+          <h3>Quality & Time</h3>
+          <div class="control-group important-setting">
+            <label>
+               Simulation Substeps
+               <span class="tooltip-icon" title="Higher values = More accurate collisions, less leaking, but slower performance.">ℹ️</span>
+            </label>
+            <input type="range" id="substeps" min="1" max="10" value="3">
+            <span class="value">3</span>
           </div>
           <div class="control-group">
-            <label>Density</label>
-            <input type="range" id="density" min="1" max="100" value="50">
-            <span class="value">50</span>
+            <label>Time Scale</label>
+            <input type="range" id="time-scale" min="0" max="200" value="100">
+            <span class="value">1.00x</span>
+          </div>
+        </div>
+
+        <!-- 4. Fluid Physics -->
+        <div class="control-section">
+          <h3>Fluid Physics</h3>
+          <div class="control-group">
+            <label>Viscosity (Thickness)</label>
+            <input type="range" id="viscosity" min="0" max="100" value="20">
+            <span class="value">20</span>
           </div>
           <div class="control-group">
             <label>Gravity</label>
@@ -215,12 +303,17 @@
             <span class="value">30</span>
           </div>
           <div class="control-group">
+            <label>Density</label>
+            <input type="range" id="density" min="1" max="100" value="50">
+            <span class="value">50</span>
+          </div>
+          <div class="control-group">
             <label>Turbulence</label>
             <input type="range" id="turbulence" min="0" max="100" value="0">
             <span class="value">0</span>
           </div>
           <div class="control-group">
-            <label>Pool Shape Randomness</label>
+            <label>Pooling Randomness</label>
             <input type="range" id="pooling-randomness" min="0" max="100" value="20">
             <span class="value">20</span>
           </div>
@@ -234,27 +327,25 @@
             <input type="range" id="particle-lifetime" min="1" max="60" value="10">
             <span class="value">10s</span>
           </div>
-          <div class="control-group">
-            <label>Time Scale</label>
-            <input type="range" id="time-scale" min="0" max="200" value="100">
-            <span class="value">1.00x</span>
-          </div>
-          <div class="control-group">
-            <label>Substeps</label>
-            <input type="range" id="substeps" min="1" max="10" value="1">
-            <span class="value">1</span>
-          </div>
         </div>
 
+        <!-- 5. Spawn Behavior -->
         <div class="control-section">
-          <h3>Spawn Settings</h3>
+          <h3>Spawn Behavior</h3>
+          <div class="control-group">
+            <label>Spawn Method</label>
+            <div class="mode-selector">
+              <button class="spawn-mode-btn active" data-spawn="spray">Spray/Stream</button>
+              <button class="spawn-mode-btn" data-spawn="drop">Single Drop</button>
+            </div>
+          </div>
           <div class="control-group">
             <label>Spawn Rate</label>
             <input type="range" id="spawn-rate" min="1" max="100" value="30">
             <span class="value">30</span>
           </div>
           <div class="control-group">
-            <label>Drop Height / Velocity</label>
+            <label>Velocity</label>
             <input type="range" id="spawn-velocity" min="0" max="200" value="50">
             <span class="value">50</span>
           </div>
@@ -264,7 +355,7 @@
             <span class="value">30°</span>
           </div>
           <div class="control-group">
-            <label>Throw Direction</label>
+            <label>Direction</label>
             <div id="compass-container">
               <div id="compass-arrow"></div>
             </div>
@@ -282,8 +373,9 @@
           </div>
         </div>
 
+        <!-- 6. Visuals -->
         <div class="control-section">
-          <h3>Visual Settings</h3>
+          <h3>Visuals</h3>
           <div class="control-group">
             <label>Color</label>
             <input type="color" id="fluid-color" value="#ff0000">
@@ -292,6 +384,22 @@
             <label>Opacity</label>
             <input type="range" id="opacity" min="10" max="100" value="80">
             <span class="value">80%</span>
+          </div>
+        </div>
+
+        <!-- 7. Canvas Settings (Lowest Priority) -->
+        <div class="control-section">
+          <h3>Canvas Settings</h3>
+          <div class="control-group">
+            <label>Dimensions</label>
+            <div style="display: flex; gap: 8px;">
+              <input type="number" id="canvas-width" value="1024" step="128">
+              <span style="align-self: center;">x</span>
+              <input type="number" id="canvas-height" value="1024" step="128">
+            </div>
+          </div>
+          <div class="control-group">
+             <button id="center-view-btn" class="btn-secondary" style="width: 100%;">Reset View / Fit</button>
           </div>
         </div>
       </div>

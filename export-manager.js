@@ -363,6 +363,10 @@ export class ExportManager {
         case 'setSubsteps': sim.setSubsteps(data); break;
         case 'spawnPool': sim.spawnPool(data.x, data.y); break;
         case 'spawnTLOU': sim.spawnTLOU(data.x, data.y); break;
+        case 'spawnBallistic': 
+             if(data.caliber) sim.setCaliber(data.caliber);
+             sim.spawnBallistic(data.x, data.y, data.angle, data.distance); 
+             break;
         case 'spawnExperimental': sim.spawnExperimental(data.x, data.y); break;
         case 'resize': sim.resize(data.width, data.height); break;
         case 'drawShape': sim.updateMask(data.x, data.y, data.radius, data.erase); break;

@@ -27,6 +27,16 @@ class App {
     this.eventLog = [];
     this.simulationTime = 0;
     this.isRecording = false;
+
+    // Ballistic Aiming & Moving
+    this.isAiming = false;
+    this.isMovingCube = false;
+    this.aimStart = { x: 0, y: 0 };
+    this.aimCurrent = { x: 0, y: 0 };
+    
+    // Cube State (Normalized 0-1)
+    this.cubePos = { x: 0.5, y: 0.5 };
+    this.cubeDistance = 0.3; // 0 to 1
     
     this.init();
   }
@@ -72,6 +82,42 @@ class App {
   resizeViewport() {
     // Just handle container sizing if needed, canvas size is explicit now
     this.updateTransform();
+    this.updateCubeVisuals();
+  }
+
+  updateCubeVisuals() {
+    const targetBlock = document.getElementById('target-block');
+    if (!targetBlock) return;
+    
+    const container = document.getElementById('canvas-container');
+    const rect = container.getBoundingClientRect();
+    
+    // Use View transform to position cube relative to Canvas
+    // BUT the cube is an HTML overlay on top of canvas-wrapper?
+    // Structure: canvas-container > canvas-wrapper > target-block
+    // canvas-wrapper has the transform (scale/translate).
+    // So if target-block is inside canvas-wrapper, it inherits transform!
+    // Let's check HTML. Yes: #target-block is inside #canvas-wrapper.
+    // So we just position it by pixels relative to canvas size.
+    
+    const x = this.cubePos.x * this.canvas.width;
+    const y = this.cubePos.y * this.canvas.height;
+    
+    targetBlock.style.left = x + 'px';
+    targetBlock.style.top = y + 'px';
+    
+    // Scale size based on canvas width
+    // Base size = 10% of width
+    const baseSize = this.canvas.width * 0.10;
+    
+    // Distance modifies visual scale (Perspective: Farther = Smaller)
+    // Distance 0 = Scale 1.2 (Very Close)
+    // Distance 1 = Scale 0.6 (Far)
+    const perspectiveScale = 1.2 - (this.cubeDistance * 0.6);
+    const size = baseSize * perspectiveScale;
+    
+    targetBlock.style.width = size + 'px';
+    targetBlock.style.height = size + 'px';
   }
 
   updateTransform() {
@@ -119,13 +165,62 @@ class App {
         
         // Toggle Shape Controls
         const shapeControls = document.getElementById('pool-shape-controls');
+        const ballisticControls = document.getElementById('ballistic-controls');
+        const targetBlock = document.getElementById('target-block');
+        
+        // Reset visibility
+        shapeControls.classList.add('hidden');
+        ballisticControls.classList.add('hidden');
+        targetBlock.classList.add('hidden');
+        this.setDrawMode(false);
+
         if (mode === 'one-click' || mode === 'smart' || mode === 'experimental') {
             shapeControls.classList.remove('hidden');
-        } else {
-            shapeControls.classList.add('hidden');
-            this.setDrawMode(false);
+        } else if (mode === 'ballistic') {
+            ballisticControls.classList.remove('hidden');
+            targetBlock.classList.remove('hidden');
         }
       });
+    });
+    
+    // Caliber Selection
+    document.querySelectorAll('.caliber-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+             document.querySelectorAll('.caliber-btn').forEach(b => b.classList.remove('active'));
+             btn.classList.add('active');
+             const cal = btn.dataset.cal;
+             this.simulator.setCaliber(cal);
+        });
+    });
+
+    // Target Block Interaction
+    const targetBlock = document.getElementById('target-block');
+    const moveHandle = targetBlock.querySelector('.move-handle');
+
+    moveHandle.addEventListener('mousedown', (e) => {
+        e.stopPropagation();
+        this.isMovingCube = true;
+    });
+
+    targetBlock.addEventListener('mousedown', (e) => {
+        // If we clicked the handle, don't aim
+        if (this.isMovingCube) return;
+        
+        e.stopPropagation();
+        this.isAiming = true;
+        const rect = targetBlock.getBoundingClientRect();
+        this.aimStart = { 
+            x: rect.left + rect.width/2, 
+            y: rect.top + rect.height/2 
+        };
+        this.aimCurrent = { x: e.clientX, y: e.clientY };
+    });
+    
+    // Distance Slider
+    const distInput = document.getElementById('target-distance');
+    distInput.addEventListener('input', (e) => {
+        this.cubeDistance = parseInt(e.target.value) / 100;
+        this.updateCubeVisuals();
     });
     
     // Shape Draw Controls
@@ -231,6 +326,9 @@ class App {
         this.logEvent('setSubsteps', val);
     });
     
+    // Initialize Substeps slider visually to match sim default (3)
+    this.updateRangeDisplay('substeps', 3);
+
     // Lifetime Controls
     this.setupRangeInput('particle-lifetime', (val) => {
         this.simulator.setParticleLifetime(val);
@@ -330,6 +428,7 @@ class App {
         this.simulator.resize(w, h);
         this.logEvent('resize', { width: w, height: h });
         this.centerView();
+        this.updateCubeVisuals();
     };
     wInput.addEventListener('change', updateSize);
     hInput.addEventListener('change', updateSize);
@@ -344,11 +443,48 @@ class App {
     // Export modal
     this.setupExportModal();
 
-    // Instructions Modal
+    // Instructions Modal Logic
     const instructionsModal = document.getElementById('instructions-modal');
     const closeInstructions = () => instructionsModal.classList.remove('active');
     document.getElementById('close-instructions').addEventListener('click', closeInstructions);
     document.getElementById('start-btn').addEventListener('click', closeInstructions);
+
+    // Instruction Navigation
+    const mainView = document.getElementById('instruction-main');
+    const backBtn = document.getElementById('back-instruction-btn');
+    const title = document.getElementById('instruction-title');
+    const defaultTitle = title.textContent;
+
+    document.querySelectorAll('.instruction-card').forEach(card => {
+        card.addEventListener('click', () => {
+             const targetId = card.dataset.target;
+             const targetView = document.getElementById(targetId);
+             
+             mainView.classList.add('hidden');
+             targetView.classList.remove('hidden');
+             backBtn.classList.remove('hidden');
+             
+             // Update title based on selection
+             title.textContent = card.querySelector('h3').textContent;
+        });
+    });
+
+    backBtn.addEventListener('click', () => {
+        mainView.classList.remove('hidden');
+        document.querySelectorAll('.instruction-detail').forEach(el => el.classList.add('hidden'));
+        backBtn.classList.add('hidden');
+        title.textContent = defaultTitle;
+    });
+
+    // Theme Toggle
+    const themeBtn = document.getElementById('theme-toggle');
+    themeBtn.addEventListener('click', () => {
+        document.body.classList.toggle('light-theme');
+        const isLight = document.body.classList.contains('light-theme');
+        themeBtn.textContent = isLight ? '🌙' : '☀️';
+        // Redraw canvas if needed? No, colors are dynamic or canvas based.
+    });
+
   }
 
   setupRangeInput(id, callback) {
@@ -598,6 +734,8 @@ class App {
           } else if (this.simulator.mode === 'smart') {
              this.simulator.spawn(pos.x, pos.y);
              this.logEvent('spawn', { x: pos.x, y: pos.y, mode: 'smart' });
+          } else if (this.simulator.mode === 'grid-wall') {
+             this.isSpawning = true;
           } else if (this.simulator.spawnMode === 'drop') {
              this.simulator.spawn(pos.x, pos.y);
              this.logEvent('spawn', { x: pos.x, y: pos.y, mode: 'drop' });
@@ -608,6 +746,20 @@ class App {
     };
     
     const handleMove = (e) => {
+        if (this.isMovingCube) {
+            const pos = getCanvasPos(e.clientX, e.clientY);
+            // Clamp to canvas
+            this.cubePos.x = Math.max(0, Math.min(1, pos.x / this.canvas.width));
+            this.cubePos.y = Math.max(0, Math.min(1, pos.y / this.canvas.height));
+            this.updateCubeVisuals();
+            return;
+        }
+
+        if (this.isAiming) {
+            this.aimCurrent = { x: e.clientX, y: e.clientY };
+            return; // Don't pan or spawn while aiming
+        }
+
         if (this.isPanning) {
             const dx = e.clientX - this.lastMouse.x;
             const dy = e.clientY - this.lastMouse.y;
@@ -629,7 +781,33 @@ class App {
         }
     };
     
-    const handleEnd = () => {
+    const handleEnd = (e) => {
+        if (this.isMovingCube) {
+            this.isMovingCube = false;
+            return;
+        }
+
+        if (this.isAiming) {
+            this.isAiming = false;
+            // Fire!
+            // Calculate angle
+            const dx = this.aimCurrent.x - this.aimStart.x;
+            const dy = this.aimCurrent.y - this.aimStart.y;
+            const angle = Math.atan2(dy, dx);
+            
+            // Map screen aim start (center of block) to canvas coords
+            const pos = getCanvasPos(this.aimStart.x, this.aimStart.y);
+            
+            this.simulator.spawnBallistic(pos.x, pos.y, angle, this.cubeDistance);
+            this.logEvent('spawnBallistic', { 
+                x: pos.x, 
+                y: pos.y, 
+                angle: angle, 
+                caliber: this.simulator.activeCaliber,
+                distance: this.cubeDistance 
+            });
+        }
+
         this.isPanning = false;
         this.isSpawning = false;
         this.isDrawingShape = false;
@@ -733,6 +911,53 @@ class App {
     
     this.overlayCtx.clearRect(0, 0, this.overlayCanvas.width, this.overlayCanvas.height);
     this.simulator.renderOverlay(this.overlayCtx);
+    
+    // Draw Aim Line
+    if (this.isAiming) {
+        // We need to map screen coords back to canvas coords for the overlay canvas
+        // Actually, overlay canvas is same transform as main canvas? 
+        // No, in CSS canvas-wrapper is transformed. The canvases are inside.
+        // So we can draw using canvas coords.
+        // We have screen coords for aim.
+        // Use getCanvasPos logic but we don't have access to it easily here unless we scope it or re-implement.
+        // BUT, we have this.aimStart which was calculated from getBoundingClientRect center.
+        
+        const getLoc = (sx, sy) => {
+            // Re-implement transform logic or use saved canvas center
+            // Simple approach: aimStart was screen relative.
+            const rect = document.getElementById('canvas-container').getBoundingClientRect();
+            const cx = rect.left + rect.width/2;
+            const cy = rect.top + rect.height/2;
+            const dx = sx - cx;
+            const dy = sy - cy;
+            // world relative to center
+            const wx = (dx - this.view.x) / this.view.scale;
+            const wy = (dy - this.view.y) / this.view.scale;
+            return { x: wx + this.canvas.width/2, y: wy + this.canvas.height/2 };
+        };
+        
+        const start = getLoc(this.aimStart.x, this.aimStart.y);
+        const end = getLoc(this.aimCurrent.x, this.aimCurrent.y);
+        
+        this.overlayCtx.beginPath();
+        this.overlayCtx.moveTo(start.x, start.y);
+        this.overlayCtx.lineTo(end.x, end.y);
+        this.overlayCtx.strokeStyle = 'rgba(255, 0, 0, 0.5)';
+        this.overlayCtx.lineWidth = 4;
+        this.overlayCtx.setLineDash([10, 10]);
+        this.overlayCtx.stroke();
+        this.overlayCtx.setLineDash([]);
+        
+        // Arrow head
+        const angle = Math.atan2(end.y - start.y, end.x - start.x);
+        const headLen = 20;
+        this.overlayCtx.beginPath();
+        this.overlayCtx.moveTo(end.x, end.y);
+        this.overlayCtx.lineTo(end.x - headLen * Math.cos(angle - Math.PI/6), end.y - headLen * Math.sin(angle - Math.PI/6));
+        this.overlayCtx.lineTo(end.x - headLen * Math.cos(angle + Math.PI/6), end.y - headLen * Math.sin(angle + Math.PI/6));
+        this.overlayCtx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+        this.overlayCtx.fill();
+    }
   }
 
   start() {

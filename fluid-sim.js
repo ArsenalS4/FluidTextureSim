@@ -21,6 +21,7 @@ export class FluidSimulator {
     
     // Properties
     this.mode = 'wall';
+    this.activeCaliber = '9mm';
     this.spawnMode = 'spray'; // 'spray' or 'drop'
     this.viscosity = 0.2; 
     this.density = 50; 
@@ -39,6 +40,9 @@ export class FluidSimulator {
     
     // Active Emitters (for slow pool formation)
     this.emitters = [];
+
+    // Vector Drip Heads
+    this.dripHeads = [];
     
     // Shape Mask (Constraint)
     this.maskCanvas = document.createElement('canvas');
@@ -54,7 +58,7 @@ export class FluidSimulator {
 
     // Time & Accuracy
     this.timeScale = 1.0;
-    this.substeps = 1;
+    this.substeps = 3;
     this.paused = false;
 
     // New Properties
@@ -234,6 +238,10 @@ export class FluidSimulator {
     // Also clear mask when switching modes to avoid confusion
     this.clearMask();
   }
+
+  setCaliber(cal) {
+      this.activeCaliber = cal;
+  }
   setSpawnMode(mode) { this.spawnMode = mode; }
   setSpawnDirection(rad) { this.spawnDirection = rad; }
   setViscosity(val) { this.viscosity = val; } 
@@ -317,6 +325,7 @@ export class FluidSimulator {
   reset() {
     this.particles = [];
     this.emitters = [];
+    this.dripHeads = [];
     this.surfaceCtx.clearRect(0, 0, this.width, this.height);
     this.wetMap.fill(0);
     this.grid.fill(0);
@@ -388,6 +397,10 @@ export class FluidSimulator {
     }
     if (this.mode === 'smart') {
         this.spawnSmart(x, y);
+        return;
+    }
+    if (this.mode === 'vector-drip') {
+        this.spawnVectorDrip(x, y);
         return;
     }
     if (this.mode === 'tlou') {
@@ -489,6 +502,47 @@ export class FluidSimulator {
       });
   }
 
+  spawnVectorDrip(x, y) {
+      // 1. Initial Impact Splash (Static)
+      const count = 10;
+      const r = this.particleSize * 3;
+      
+      this.surfaceCtx.fillStyle = this.color;
+      this.surfaceCtx.beginPath();
+      this.surfaceCtx.arc(x, y, r, 0, Math.PI*2);
+      this.surfaceCtx.fill();
+      
+      // Add some random droplets around
+      for(let i=0; i<count; i++) {
+          const angle = this.random() * Math.PI * 2;
+          const dist = this.random() * r * 1.5;
+          const size = this.random() * r * 0.4;
+          this.surfaceCtx.beginPath();
+          this.surfaceCtx.arc(x + Math.cos(angle)*dist, y + Math.sin(angle)*dist, size, 0, Math.PI*2);
+          this.surfaceCtx.fill();
+      }
+
+      // 2. Spawn Active Drip Heads
+      // Number of drips depends on size
+      const dripCount = 3 + Math.floor(this.random() * 3);
+      
+      for(let i=0; i<dripCount; i++) {
+          const w = 4 + this.random() * 6; // Width
+          const speed = 50 + this.random() * 50;
+          
+          this.dripHeads.push({
+              x: x + (this.random() - 0.5) * r,
+              y: y + (this.random() - 0.5) * r,
+              prevX: x, 
+              prevY: y,
+              vx: 0,
+              vy: speed,
+              width: w,
+              active: true
+          });
+      }
+  }
+
   spawnTLOU(x, y) {
       // Pick random sub-UV frame from 6x6 grid
       // Frame indices 0 to 35
@@ -507,6 +561,86 @@ export class FluidSimulator {
           rotation: this.random() * Math.PI * 2,
           scale: 1.0 + this.random() * 0.5
       });
+  }
+
+  spawnBallistic(x, y, angle, distance = 0.3) {
+    const calibers = {
+        '22lr': { count: 20, speed: 120, spread: 0.10, size: 0.8, mist: 0.1 },
+        '9mm': { count: 45, speed: 150, spread: 0.20, size: 1.1, mist: 0.25 },
+        '45acp': { count: 40, speed: 130, spread: 0.25, size: 1.6, mist: 0.2 },
+        '556': { count: 180, speed: 280, spread: 0.40, size: 0.7, mist: 0.85 }, // Rifle = High velocity
+        '12ga': { count: 250, speed: 220, spread: 0.70, size: 1.0, mist: 0.6 }
+    };
+
+    const stats = calibers[this.activeCaliber] || calibers['9mm'];
+    const rgb = this.hexToRgb(this.color);
+    const colorStr = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 1)`;
+    
+    // Scale Spread based on Distance
+    // Farther (1.0) = More Spread
+    const distanceSpreadMod = 1.0 + distance * 1.5;
+    const baseSpread = stats.spread * distanceSpreadMod;
+    
+    // Scale count based on spread (fill the area)
+    const count = Math.floor(stats.count * (1.0 + distance * 0.5));
+
+    // High Velocity Impact Splatter Particles
+    // If distance is low, we want sharp, fast streaks.
+    // If distance is high, maybe slightly slower due to air?
+    // Let's just make them fast to satisfy "high velocity" request.
+    const velocityScale = 30.0; // Significant boost from previous 15
+
+    for(let i=0; i<count; i++) {
+        if (this.particles.length >= this.maxParticles) this.particles.shift();
+
+        // 1. Determine type: Splatter (Super fast), Mist (fast, small), or Drop (heavier)
+        const r = this.random();
+        let type = 'drop';
+        if (r < 0.2) type = 'splatter'; // 20% high velocity core
+        else if (r < stats.mist + 0.2) type = 'mist';
+
+        // 2. Spread Angle
+        // Splatter is tighter core, Mist is wider
+        let spreadMult = 1.0;
+        if (type === 'splatter') spreadMult = 0.5;
+        if (type === 'mist') spreadMult = 1.2;
+        
+        const spreadVar = (this.random() - 0.5) * baseSpread * spreadMult; 
+        const theta = angle + spreadVar;
+        
+        // 3. Speed
+        const speedVar = 0.8 + this.random() * 0.6;
+        let speed = stats.speed * speedVar * velocityScale; 
+        
+        // Splatter particles are extremely fast
+        if (type === 'splatter') speed *= 2.0; 
+        if (type === 'mist') speed *= 1.2;
+
+        // 4. Size/Mass
+        let sizeBase = stats.size;
+        if (type === 'mist') sizeBase *= 0.5;
+        if (type === 'splatter') sizeBase *= 0.4; // Tiny droplets
+
+        const mass = this.particleSize * sizeBase * (type === 'drop' ? 1.0 : 0.4);
+        
+        // Spawn slightly along the vector so they don't all clump at 0
+        const spawnOffset = this.random() * 20.0;
+        const sx = x + Math.cos(theta) * spawnOffset;
+        const sy = y + Math.sin(theta) * spawnOffset;
+
+        this.particles.push({
+            x: sx, y: sy, prevX: sx, prevY: sy,
+            vx: Math.cos(theta) * speed, 
+            vy: Math.sin(theta) * speed,
+            mass: mass,
+            initialMass: mass,
+            color: colorStr,
+            active: true,
+            life: this.particleLifetime,
+            isMist: (type === 'mist'),
+            isSplatter: (type === 'splatter') // New flag for low friction
+        });
+    }
   }
 
   spawnPool(x, y) {
@@ -710,6 +844,11 @@ export class FluidSimulator {
         this.updateSmartExpansion(dt);
         return; 
     }
+
+    if (this.mode === 'vector-drip') {
+        this.updateVectorDrip(dt);
+        return;
+    }
     
     if (this.mode === 'tlou') {
         this.updateTLOU(dt);
@@ -727,7 +866,7 @@ export class FluidSimulator {
       
       const speed = Math.sqrt(p.vx*p.vx + p.vy*p.vy);
 
-      if (this.mode === 'wall') {
+      if (this.mode === 'wall' || this.mode === 'ballistic') {
         // Check wet map at particle position
         const ix = Math.floor(p.x);
         const iy = Math.floor(p.y);
@@ -738,44 +877,64 @@ export class FluidSimulator {
             wetVal = this.wetMap[iy * this.width + ix];
         }
 
-        const gravity = 3000 * this.gravityStrength;
+        const gravity = 2500 * this.gravityStrength;
         p.vy += gravity * dt;
         
+        // Simplified friction for classic drip behavior
         const viscosityFactor = Math.max(0.1, this.viscosity);
-        let friction = Math.exp(-viscosityFactor * 5 * dt);
+        let friction = 1.0 - (viscosityFactor * 2.0 * dt);
         
-        // Buildup Logic: The wetter it is, the less friction
-        if (wetVal > 10) {
-             // Scale friction reduction by wetness (10 to 255)
-             const slipFactor = Math.min(1.0, wetVal / 200.0);
-             const power = 0.2 * (1.0 - slipFactor) + 0.01 * slipFactor; // 0.2 down to 0.01
-             friction = Math.pow(friction, power); 
+        // BALLISTIC MODES
+        if (this.mode === 'ballistic') {
+             if (p.isSplatter) {
+                 // High friction to simulate impact "splat" on the wall plane
+                 // This prevents them from flying across the canvas like bullets
+                 friction = 1.0 - (20.0 * dt); 
+             } else if (p.isMist) {
+                 friction = 1.0 - (25.0 * dt); 
+                 if (speed < 100) p.mass -= dt * 10.0; 
+             }
         }
 
-        if (speed > 500) friction = Math.pow(friction, 0.5); 
+        // Mild slip on wet surfaces, creates paths but less restrictive
+        if (wetVal > 20) {
+             friction = 1.0 - (viscosityFactor * 0.5 * dt);
+        }
+        if (friction < 0) friction = 0;
+
         p.vx *= friction;
         p.vy *= friction;
 
         // Mass Loss on Wall = Streaks
         const dist = speed * dt;
-        // Adjusted loss rate to make streaks last longer
-        let lossRate = 0.05 * (1.0 - this.viscosity * 0.3);
+        // Lower loss rate allows drips to flow much further
+        let lossRate = 0.01 * (1.0 - this.viscosity * 0.5);
         
-        // If wet, reduce mass loss significantly based on buildup
-        if (wetVal > 0) {
-            const saveFactor = Math.min(1.0, wetVal / 100.0);
-            lossRate *= (0.05 * (1.0 - saveFactor)); // Almost 0 loss at high wetness
-        }
+        // Streak / Trail Logic
+        // Only streak if there is enough mass (buildup) or the surface is already wet.
+        const massThreshold = this.particleSize * 0.8; 
+        const wetThreshold = 5; 
+        const canStreak = (p.mass > massThreshold) || (wetVal > wetThreshold);
 
-        p.mass -= dist * lossRate; 
+        if (canStreak) {
+            // Reduce loss on existing liquid (re-wetting)
+            if (wetVal > 0) {
+                lossRate *= 0.4;
+            }
+            p.mass -= dist * lossRate; 
+        } else {
+             // Minimal loss for non-streaking drops
+             p.mass -= dist * (lossRate * 0.1);
+        }
         
-        // Random deviation only if not moving fast in a stream
-        if (wetVal < 50 && speed < 200 && speed > 10) {
-           p.vx += (this.random() - 0.5) * 100 * (1-this.viscosity) * dt;
+        // Random deviation / Meandering
+        if (speed > 10) {
+           p.vx += (this.random() - 0.5) * 150 * (1-this.viscosity) * dt;
         }
 
         // Draw Trails Immediately for Wall Mode
-        if (p.active && p.mass > 0.5) {
+        // Only draw streak if we determined it can streak
+        if (p.active && p.mass > 0.5 && canStreak) {
           this.surfaceCtx.fillStyle = p.color;
           this.surfaceCtx.strokeStyle = p.color;
           const width = p.mass * 2;
@@ -1526,6 +1685,94 @@ export class FluidSimulator {
       
       // Copy back
       this.grid.set(this.nextGrid);
+  }
+
+  updateVectorDrip(dt) {
+      this.surfaceCtx.lineCap = 'round';
+      this.surfaceCtx.lineJoin = 'round';
+      this.surfaceCtx.strokeStyle = this.color;
+      this.surfaceCtx.fillStyle = this.color;
+
+      for (let i = this.dripHeads.length - 1; i >= 0; i--) {
+          const head = this.dripHeads[i];
+          
+          if (!head.active) {
+              this.dripHeads.splice(i, 1);
+              continue;
+          }
+
+          head.prevX = head.x;
+          head.prevY = head.y;
+
+          // Physics
+          // Gravity acceleration
+          head.vy += this.gravityStrength * 10.0 * dt; 
+          
+          // Meandering (Noise)
+          // Use fixed seed offset so path is consistent if we re-simulated (though we aren't here)
+          const n = this.noise(head.x * 0.05, head.y * 0.05 + this.seed);
+          const meanderForce = (n - 0.5) * 500 * (1.0 - this.viscosity);
+          head.vx += meanderForce * dt;
+          
+          // Damping
+          head.vx *= 0.9;
+          
+          // Move
+          head.x += head.vx * dt;
+          head.y += head.vy * dt;
+          
+          // Shrink width over time
+          // Loss correlates to speed (longer streak = more mass lost)
+          const speed = Math.sqrt(head.vx*head.vx + head.vy*head.vy);
+          const loss = (5.0 + speed * 0.05) * dt * 0.8;
+          head.width -= loss;
+
+          // Mask Check
+          if (this.hasMask) {
+              const mx = Math.floor(head.x);
+              const my = Math.floor(head.y);
+              if (mx >= 0 && mx < this.width && my >= 0 && my < this.height) {
+                  if (this.maskData[my * this.width + mx] === 0) {
+                      head.active = false;
+                  }
+              }
+          }
+
+          // Render Trail
+          if (head.width > 0.5) {
+              this.surfaceCtx.lineWidth = head.width;
+              this.surfaceCtx.beginPath();
+              this.surfaceCtx.moveTo(head.prevX, head.prevY);
+              this.surfaceCtx.lineTo(head.x, head.y);
+              this.surfaceCtx.stroke();
+              
+              // Draw head cap to smooth joints
+              this.surfaceCtx.beginPath();
+              this.surfaceCtx.arc(head.x, head.y, head.width/2, 0, Math.PI*2);
+              this.surfaceCtx.fill();
+          } else {
+              head.active = false;
+          }
+          
+          // Branching
+          if (head.width > 3 && this.random() < 0.02) {
+              const newW = head.width * 0.6;
+              head.width *= 0.7; 
+              
+              this.dripHeads.push({
+                  x: head.x,
+                  y: head.y,
+                  prevX: head.x,
+                  prevY: head.y,
+                  vx: head.vx + (this.random() - 0.5) * 50, 
+                  vy: head.vy * 0.8,
+                  width: newW,
+                  active: true
+              });
+          }
+          
+          if (head.y > this.height) head.active = false;
+      }
   }
 
   updateExperimental(dt) {
